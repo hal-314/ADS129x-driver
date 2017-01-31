@@ -5,6 +5,17 @@
 
 #if ADS_LIBRARY_VERBOSE_LEVEL > 0
 // Code are wrapped in {} because must be treated as one line of code
+#define _ADS_WARNING(msg) \
+  {Serial.print("Warning: "); \
+    Serial.println(msg); \
+    Serial.println("Stopping program execution"); \
+    while (1); }
+#else
+#define _ADS_WARNING(msg) ; // Do nothing
+#endif
+
+#if ADS_LIBRARY_VERBOSE_LEVEL > 0
+// Code are wrapped in {} because must be treated as one line of code
 #define _ADS_ERROR(msg) \
   {Serial.print("Error: "); \
     Serial.println(msg); \
@@ -60,7 +71,7 @@ void ADS129xSensor::begin() {
   // Moreover, give to to the internal oscillator to start up (it is 20 microseconds (see electrical characteristics in the datasheet)
   delay(_ADS_POWER_UP_DELAY_MS);
 
-  // Set CLKSEL, START and PDWN pins to default value if are provided by user specified in 
+  // Set CLKSEL, START and PDWN pins to default value if are provided by user specified in
   // page 84, 10.1.1 Setting the Device for Basic Data Capture, in the datasheet
   // I also configure the arduino pins connected to them
 
@@ -76,7 +87,7 @@ void ADS129xSensor::begin() {
     disableHardwareStartMode();
   }
 
-  // Pdwn Pin 
+  // Pdwn Pin
   if (pwdnPin != ADS_PIN_NOT_USED) {
     pinMode(this->pwdnPin, OUTPUT);
     disableHardwarePowerDownMode();
@@ -262,6 +273,11 @@ void ADS129xSensor::endSpiTransaction() {
 /* ============ Registers ============== */
 // See page 17, section 7.7 Switching Characteristics: Serial Interface, and page 59, section 9.5 Programming, in the datasheet) to understand SPI communication
 byte ADS129xSensor::readRegister(byte registAddr, boolean keepSpiOpen) {
+  if (readingStatus == _ADS_READING_DATA_IN_RDATAC_MODE){
+    _ADS_WARNING("In RDATAC mode, ADS only accept SDATAC SPI command. Others commands (like read/write registers) will be ignored "); 
+    return 0xFF;
+  }
+
   // In datasheet is not specified but I think that chip select must be low for the entire command.
   // because in case of writting in a register, chip select must be low in the entire operation
   beginSpiTransaction();
@@ -281,6 +297,11 @@ byte ADS129xSensor::readRegister(byte registAddr, boolean keepSpiOpen) {
 
 // See page 17, section 7.7 Switching Characteristics: Serial Interface, and page 59, section 9.5 Programming, in the datasheet) to understand SPI communication
 void ADS129xSensor::writeRegister(byte registAddr, byte data, boolean keepSpiOpen) {
+  if (readingStatus == _ADS_READING_DATA_IN_RDATAC_MODE){
+    _ADS_WARNING("In RDATAC mode, ADS only accept SDATAC SPI command. Others commands (like read/write registers) will be ignored "); 
+    return;
+  }
+
   // Chip select must be low for the entire command
   beginSpiTransaction();
 
@@ -346,6 +367,11 @@ void ADS129xSensor::sendCommand(byte command, boolean keepSpiOpen) {
 }
 
 void ADS129xSensor::sendSPICommandWAKEUP(boolean keepSpiOpen) {
+  if (readingStatus == _ADS_READING_DATA_IN_RDATAC_MODE){
+    _ADS_WARNING("In RDATAC mode, ADS only accept SDATAC SPI command. Others commands will be ignored"); 
+    return;
+  }
+
   //After execute WAKEUP command, the next command must wait for 4*_ADS_T_CLK cycles (see page 61 in the datasheet)
   // 4*_ADS_T_CLK is roughtly 2 microseconds
   sendCommand(ads::commands::WAKEUP, keepSpiOpen);
@@ -353,6 +379,11 @@ void ADS129xSensor::sendSPICommandWAKEUP(boolean keepSpiOpen) {
 }
 
 void ADS129xSensor::sendSPICommandSTANDBY(boolean keepSpiOpen) {
+  if (readingStatus == _ADS_READING_DATA_IN_RDATAC_MODE){
+    _ADS_WARNING("In RDATAC mode, ADS only accept SDATAC SPI command. Others commands will be ignored"); 
+    return;
+  }
+
   sendCommand(ads::commands::STANDBY, keepSpiOpen);
   // No wait time needed
 }
@@ -361,15 +392,25 @@ void ADS129xSensor::sendSPICommandRESET(boolean keepSpiOpen) {
   if (resetPin != ADS_PIN_NOT_USED)
     _ADS_ERROR("Reset pin is specified!!!! Reset must be done with the reset pin -> use doHardwareReset() method!!!");
 
+  if (readingStatus == _ADS_READING_DATA_IN_RDATAC_MODE){
+    _ADS_WARNING("In RDATAC mode, ADS only accept SDATAC SPI command. Others commands will be ignored"); 
+    return;
+  }
+
   // 18*_ADS_T_CLK cycles are required to execute the RESET command. Do not send any commands during this time. (see page 62 in datasheet)
   // 18 *_ADS_T_CLK is roughtly 8.8 microseconds
   sendCommand(ads::commands::RESET, keepSpiOpen);
-  delayMicroseconds(_ADS_T_CLK_18); 
+  delayMicroseconds(_ADS_T_CLK_18);
 }
 
 void ADS129xSensor::sendSPICommandSTART(boolean keepSpiOpen) {
   if (startPin != ADS_PIN_NOT_USED)
     _ADS_ERROR("Start pin is specified -> start and stop are not allowed!!!");
+
+  if (readingStatus == _ADS_READING_DATA_IN_RDATAC_MODE){
+    _ADS_WARNING("In RDATAC mode, ADS only accept SDATAC SPI command. Others commands will be ignored"); 
+    return;
+  }
 
   //After execute START command, the next command must wait for 4*_ADS_T_CLK cycles (see page 62 in the datasheet)
   // 4*_ADS_T_CLK is roughtly 2 microseconds
@@ -381,12 +422,22 @@ void ADS129xSensor::sendSPICommandSTOP(boolean keepSpiOpen) {
   if (startPin != ADS_PIN_NOT_USED)
     _ADS_ERROR("Start pin is specified -> start and stop are not allowed!!!");
 
+  if (readingStatus == _ADS_READING_DATA_IN_RDATAC_MODE){
+    _ADS_WARNING("In RDATAC mode, ADS only accept SDATAC SPI command. Others commands will be ignored"); 
+    return;
+  }
+
   sendCommand(ads::commands::STOP, keepSpiOpen);
   // No wait time needed
 }
 
 // Be aware that when RDATAC command is sent, the any other command except SDATAC will be ignored
 void ADS129xSensor::sendSPICommandRDATAC(boolean keepSpiOpen) {
+  if (readingStatus == _ADS_READING_DATA_IN_RDATAC_MODE) {
+    _ADS_WARNING("In RDATAC mode, ADS only accept SDATAC SPI command. Others commands will be ignored");
+    return;
+  }
+
   //After execute RDATAC command, the next command must wait for 4*_ADS_T_CLK cycles (see page 62 in the datasheet)
   // 4*_ADS_T_CLK is roughtly 2 microseconds
   sendCommand(ads::commands::RDATAC, keepSpiOpen);
@@ -395,7 +446,7 @@ void ADS129xSensor::sendSPICommandRDATAC(boolean keepSpiOpen) {
 }
 
 void ADS129xSensor::sendSPICommandSDATAC(boolean keepSpiOpen) {
-  //After execute SDATAC command, the next command must wait for 4*_ADS_T_CLK cycles (see page 63 in the datasheet)
+  //Afterfreturn execute SDATAC command, the next command must wait for 4*_ADS_T_CLK cycles (see page 63 in the datasheet)
   // 4*_ADS_T_CLK is roughtly 2 microseconds
   sendCommand(ads::commands::SDATAC, keepSpiOpen);
   delayMicroseconds(_ADS_T_CLK_4);
@@ -403,8 +454,10 @@ void ADS129xSensor::sendSPICommandSDATAC(boolean keepSpiOpen) {
 }
 
 void ADS129xSensor::sendSPICommandRDATA(boolean keepSpiOpen) {
-  if (readingStatus == _ADS_READING_DATA_IN_RDATAC_MODE)
-    return false; // In RDATAC mode, ADS doesn't accept any command unless SDATAC command
+  if (readingStatus == _ADS_READING_DATA_IN_RDATAC_MODE) {
+    _ADS_WARNING("In RDATAC mode, ADS only accept SDATAC SPI command. Others commands will be ignored");
+    return;
+  }
 
   // RDATA command will be send when new data is available
   readingStatus = _ADS_READING_DATA_IN_RDATA_MODE;

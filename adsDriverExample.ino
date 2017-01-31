@@ -3,9 +3,9 @@
 #include "ads129xDriver.h"
 
 
-// The driver is configure to talk control an ADS1294 chip.
+// The driver is configured to take control of an ADS1294 chip.
 // In file ads129xDriverConfig.h you have to specify the model of the ADS, bits per channel 
-// the lvel of verbose of the library.
+// and the level of verbose of the library.
 
 // GPIO pins where CS, DRDY and RESET pins of the ADS chip are conected.
 /* ============== GPIO pins connected to ADS chip ===========*/
@@ -37,9 +37,9 @@ void setup() {
   while (!Serial);
   Serial.begin(115200);
 
-  Serial.println("Sarting the ADS setuo");
+  Serial.println("Starting the ADS setup");
 
-  Serial.println("Calling ADS129xSensor.begin() method. Remenber to call at the beginning');
+  Serial.println("Calling ADS129xSensor.begin() method. Remember to call at the beginning");
   // You MUST call begin() method before any other method of ADS129xSensor
   adsSensor.begin();
 
@@ -85,7 +85,7 @@ void setup() {
   adsSensor.enableChannelAndSetGain(2, ads::registers::chnSet::GAIN_3X, ads::registers::chnSet::TEST_SIGNAL);
   Serial.println("Channel 3: power-down and its inputs shorted (as Texas Instruments recommends)");
   adsSensor.disableChannel(3, true);
-  Serial.println("Channels 4 to max channels: set gain 6 and normal input");
+  Serial.println("Channel 4 to max channels: set gain 6 and normal input");
   for (uint8_t i = 4; i <= ADS_N_CHANNELS; i++)
     adsSensor.enableChannelAndSetGain(i, ads::registers::chnSet::GAIN_6X, ads::registers::chnSet::ELECTRODE_INPUT);
 
