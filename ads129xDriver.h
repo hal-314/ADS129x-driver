@@ -1,11 +1,17 @@
-/*  ---------------------------------
+/*  
+    ---------------------------------
+    
     ADS model, bits per channel and other configurations goes to ads129xDriverConfig.h file.
     This file is only for code.
-    -----------------------------
+
+    Constants present in the Datasheet and some helper constant to configure the registers in ADS chip are defined in ads129xDatashhetConstants.h
+    Read the documentation in these file to know more about it.
+    
+    --------------------------------
 
     Arduino library for ADS1294, ADS1294R, ADS1296, ADS1296R, ADS1298 and ADS1298R chips.
     All these chips share the same datasheet "ADS129x Low-Power, 8-Channel, 24-Bit Analog Front-End for Biopotential Measurements"
-
+    
     Typical usage (see adsDriverExample for an example):
       0- Configure the ADS to use, verbose level and bits per channel (is not the same than resolution) in ads129xDriverConfig
       1- Cal1 the constructor
@@ -175,7 +181,7 @@ class ADS129xSensor {
   private:
     volatile boolean isSpiOpen, hasNewData;
     volatile uint8_t readingStatus;
-    int8_t chipSelectPin, drdyPin, resetPin, startPin, pwdnPin, clkselPin;
+    uint8_t chipSelectPin, drdyPin, resetPin, startPin, pwdnPin, clkselPin;
 
     // It is declarated in order to allocate memory and avoid to allocate every time that new data is available
     // In the worst case scenario, it takes 27 bytes ( in ADS1298 or ADS1298R model with 24 bits resolution).
@@ -267,6 +273,8 @@ class ADS129xSensor {
     /* =====  Register related methods  ====== */
     // Read the ADS register pointed by registAddr. See know about keepSpiOpen, read the comment
     // about methods related to send SPI commands (it's the next section)
+    // Return 0xFF if read SPI command can't be sent due to ADS is in RDATAC mode. Otherwise, 
+    // return the register value
     byte readRegister(byte registAddr, boolean keepSpiOpen = false);
 
     // WARNING: when you write a register, you write in all the bits of the register.
